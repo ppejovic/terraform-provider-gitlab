@@ -12,11 +12,13 @@ import (
 )
 
 func resourceGitlabProjectAccessToken() *schema.Resource {
-	// lintignore: XR002 // TODO: Resolve this tfproviderlint issue
 	return &schema.Resource{
 		Create: resourceGitlabProjectAccessTokenCreate,
 		Read:   resourceGitlabProjectAccessTokenRead,
 		Delete: resourceGitlabProjectAccessTokenDelete,
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"project": {
@@ -105,8 +107,8 @@ func resourceGitlabProjectAccessTokenCreate(d *schema.ResourceData, meta interfa
 	log.Printf("[DEBUG] created gitlab ProjectAccessToken %d - %s for project ID %d", projectAccessToken.ID, *options.Name, project)
 
 	projectString := strconv.Itoa(project)
-	PATstring := strconv.Itoa(projectAccessToken.ID)
-	d.SetId(buildTwoPartID(&projectString, &PATstring))
+	patString := strconv.Itoa(projectAccessToken.ID)
+	d.SetId(buildTwoPartID(&projectString, &patString))
 	d.Set("token", projectAccessToken.Token)
 
 	return resourceGitlabProjectAccessTokenRead(d, meta)
@@ -114,7 +116,7 @@ func resourceGitlabProjectAccessTokenCreate(d *schema.ResourceData, meta interfa
 
 func resourceGitlabProjectAccessTokenRead(d *schema.ResourceData, meta interface{}) error {
 
-	projectString, PATstring, err := parseTwoPartID(d.Id())
+	projectString, patString, err := parseTwoPartID(d.Id())
 	if err != nil {
 		return fmt.Errorf("Error parsing ID: %s", d.Id())
 	}
@@ -126,9 +128,9 @@ func resourceGitlabProjectAccessTokenRead(d *schema.ResourceData, meta interface
 		return fmt.Errorf("%s cannot be converted to int", projectString)
 	}
 
-	projectAccessTokenID, err := strconv.Atoi(PATstring)
+	projectAccessTokenID, err := strconv.Atoi(patString)
 	if err != nil {
-		return fmt.Errorf("%s cannot be converted to int", PATstring)
+		return fmt.Errorf("%s cannot be converted to int", patString)
 	}
 
 	log.Printf("[DEBUG] read gitlab ProjectAccessToken %d, project ID %d", projectAccessTokenID, project)
@@ -155,12 +157,16 @@ func resourceGitlabProjectAccessTokenRead(d *schema.ResourceData, meta interface
 				d.Set("name", projectAccessToken.Name)
 				if projectAccessToken.ExpiresAt != nil {
 					d.Set("expires_at", projectAccessToken.ExpiresAt.String())
+				} else {
+					d.Set("expires_at", "")
 				}
 				d.Set("active", projectAccessToken.Active)
 				d.Set("created_at", projectAccessToken.CreatedAt.String())
 				d.Set("revoked", projectAccessToken.Revoked)
 				d.Set("user_id", projectAccessToken.UserID)
-				d.Set("scopes", projectAccessToken.Scopes) // lintignore: R004,XR004 // TODO: Resolve this tfproviderlint issue
+				if err := d.Set("scopes", projectAccessToken.Scopes); err != nil {
+					return err
+				}
 
 				return nil
 			}
@@ -176,7 +182,7 @@ func resourceGitlabProjectAccessTokenRead(d *schema.ResourceData, meta interface
 
 func resourceGitlabProjectAccessTokenDelete(d *schema.ResourceData, meta interface{}) error {
 
-	projectString, PATstring, err := parseTwoPartID(d.Id())
+	projectString, patString, err := parseTwoPartID(d.Id())
 	if err != nil {
 		return fmt.Errorf("Error parsing ID: %s", d.Id())
 	}
@@ -188,9 +194,9 @@ func resourceGitlabProjectAccessTokenDelete(d *schema.ResourceData, meta interfa
 		return fmt.Errorf("%s cannot be converted to int", projectString)
 	}
 
-	projectAccessTokenID, err := strconv.Atoi(PATstring)
+	projectAccessTokenID, err := strconv.Atoi(patString)
 	if err != nil {
-		return fmt.Errorf("%s cannot be converted to int", PATstring)
+		return fmt.Errorf("%s cannot be converted to int", patString)
 	}
 
 	log.Printf("[DEBUG] Delete gitlab ProjectAccessToken %s", d.Id())

@@ -36,6 +36,13 @@ func TestAccGitlabProjectAccessToken_basic(t *testing.T) {
 					}),
 				),
 			},
+			// Check import
+			{
+				ResourceName:            "gitlab_project_access_token.bar",
+				ImportState:             true,
+				ImportStateVerify:       true,
+				ImportStateVerifyIgnore: []string{"token"}, // Cannot read token after create.
+			},
 			// Update the Project Access Token to change the parameters
 			{
 				Config: testAccGitlabProjectAccessTokenUpdateConfig(rInt),
